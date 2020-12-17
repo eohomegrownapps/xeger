@@ -17,7 +17,7 @@ if sys.version_info[0] >= 3:
 
 
 class Xeger(object):
-    def __init__(self, limit=10, seed=None):
+    def __init__(self, limit=10, seed=None, alphabet=string.printable):
         super(Xeger, self).__init__()
         self._limit = limit
         self._cache = dict()
@@ -28,6 +28,7 @@ class Xeger(object):
         if seed:
             self.seed(seed)
 
+        self.alphabet = alphabet
         self._alphabets = {
             'printable': string.printable,
             'letters': string.ascii_letters,
@@ -61,10 +62,10 @@ class Xeger(object):
         self._cases = {
             "literal": lambda x: unichr(x),
             "not_literal":
-                lambda x: self.random_choice(string.printable.replace(unichr(x), '')),
+                lambda x: self.random_choice(self.alphabet.replace(unichr(x), '')),
             "at": lambda x: '',
             "in": lambda x: self._handle_in(x),
-            "any": lambda x: self.random_choice(string.printable.replace('\n', '')),
+            "any": lambda x: self.random_choice(self.alphabet.replace('\n', '')),
             "range": lambda x: [unichr(i) for i in xrange(x[0], x[1] + 1)],
             "category": lambda x: self._categories[str(x).lower()](),
             'branch':
@@ -78,15 +79,18 @@ class Xeger(object):
             'negate': lambda x: [False],
         }
 
-    def xeger(self, string_or_regex):
+    def xeger(self, string_or_regex, limit=None):
         try:
             pattern = string_or_regex.pattern
         except AttributeError:
             pattern = string_or_regex
-
+        prev_limit = self._limit
+        if limit is not None:
+            self._limit = limit
         parsed = re.sre_parse.parse(pattern)
         result = self._build_string(parsed)
         self._cache.clear()
+        self._limit = prev_limit
         return result
 
     @property
@@ -124,7 +128,7 @@ class Xeger(object):
     def _handle_in(self, value):
         candidates = list(itertools.chain(*(self._handle_state(i) for i in value)))
         if candidates[0] is False:
-            candidates = set(string.printable).difference(candidates[1:])
+            candidates = set(self.alphabet).difference(candidates[1:])
             return self.random_choice(list(candidates))
         else:
             return self.random_choice(candidates)
